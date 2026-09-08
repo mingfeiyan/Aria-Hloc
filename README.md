@@ -226,6 +226,14 @@ ARIA_HLOC_E2E=1 pytest tests/test_e2e_synthetic.py -s   # full hloc map build + 
 The end-to-end test renders a textured plane from known poses, builds a map with hloc,
 and relocalizes held-out views (expected: < 5 cm / 1°, typically millimetres).
 
+Verified on real data with the projectaria_tools Gen 1 MPS sample
+(`data/gen1/mps_sample`: 12 s, RGB + 2 SLAM cameras, CPU only): 165 keyframes,
+7491 points at 1.41 px reprojection error; map points lie within a median 4.4 cm of
+the MPS semi-dense cloud; relocalizing every 7th frame of all three cameras gives
+100 % recall at 5 cm / 2° with a median error of 0.4 cm / 0.18° against the MPS
+trajectory. The Gen 2 reader/rectification was checked on the Gen 2 unit-test
+recordings; a Gen 2 map build still needs a recording with an MPS trajectory.
+
 ## Limitations / next steps
 
 * Map building uses the factory calibration (or MPS online calibration when present);
