@@ -35,6 +35,7 @@ CLOSED_LOOP_FILENAME = "closed_loop_trajectory.csv"
 OPEN_LOOP_FILENAME = "open_loop_trajectory.csv"
 ONLINE_CALIBRATION_FILENAME = "online_calibration.jsonl"
 SEMIDENSE_POINTS_FILENAME = "semidense_points.csv.gz"
+SEMIDENSE_POINTS_LEGACY_FILENAME = "global_points.csv.gz"  # older MPS releases
 SEMIDENSE_OBSERVATIONS_FILENAME = "semidense_observations.csv.gz"
 
 
@@ -83,7 +84,7 @@ def find_mps_paths(path: Path) -> MpsPaths:
     return MpsPaths(
         closed_loop_trajectory=traj,
         online_calibration=_opt(ONLINE_CALIBRATION_FILENAME),
-        semidense_points=_opt(SEMIDENSE_POINTS_FILENAME),
+        semidense_points=_opt(SEMIDENSE_POINTS_FILENAME) or _opt(SEMIDENSE_POINTS_LEGACY_FILENAME),
         semidense_observations=_opt(SEMIDENSE_OBSERVATIONS_FILENAME),
     )
 
