@@ -1,0 +1,21 @@
+# Core (always needed)
+numpy
+opencv-python-headless
+h5py
+scipy
+tqdm
+# Aria data (VRS, MPS online calibration, fisheye -> pinhole rectification)
+projectaria_tools>=1.5
+# hloc dependencies; hloc itself: see README (recursive git clone)
+torch>=2.0
+torchvision
+pycolmap>=3.13
+kornia>=0.6.11
+lightglue @ git+https://github.com/cvg/LightGlue
+# Service
+fastapi
+uvicorn[standard]
+python-multipart
+httpx
+# Tests
+pytest

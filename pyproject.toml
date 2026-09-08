@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aria-hloc"
+version = "0.1.0"
+description = "Relocalize Project Aria (Gen 2) frames in an Aria MPS map with Hierarchical-Localization"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "Apache-2.0" }
+dependencies = [
+    "numpy",
+    "opencv-python-headless",
+    "h5py",
+    "scipy",
+    "tqdm",
+]
+
+[project.optional-dependencies]
+# Reading VRS files / MPS online calibration and fisheye rectification.
+aria = ["projectaria_tools>=1.5"]
+# hloc itself must be installed from a recursive clone (see README); these are its heavy deps.
+hloc = ["torch>=2.0", "torchvision", "pycolmap>=3.13", "kornia>=0.6.11"]
+service = ["fastapi", "uvicorn[standard]", "python-multipart", "httpx"]
+dev = ["pytest", "fastapi", "httpx", "python-multipart", "pycolmap>=3.13"]
+
+[project.scripts]
+aria-hloc = "aria_hloc.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["aria_hloc*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning"]

@@ -1,0 +1,1 @@
+"""HTTP relocalization service."""
