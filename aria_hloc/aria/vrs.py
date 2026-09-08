@@ -1,8 +1,9 @@
 """Minimal VRS frame reader built on ``projectaria_tools``.
 
 Works for Aria Gen 1 and Gen 2 recordings. Camera labels are discovered from
-the device calibration, e.g. Gen 2: ``camera-rgb``, ``camera-slam-front-left``,
-``camera-slam-front-right``, ``camera-slam-side-left``, ``camera-slam-side-right``.
+the device calibration: Gen 1 ``camera-rgb``, ``camera-slam-left``,
+``camera-slam-right``; Gen 2 ``camera-rgb``, ``slam-front-left``,
+``slam-front-right``, ``slam-side-left``, ``slam-side-right``.
 """
 
 from __future__ import annotations
@@ -18,10 +19,11 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_MAPPING_CAMERAS = [
     "camera-rgb",
-    "camera-slam-front-left",
-    "camera-slam-front-right",
-    "camera-slam-side-left",
-    "camera-slam-side-right",
+    # Gen 2 labels (as reported by the device calibration of Gen 2 recordings)
+    "slam-front-left",
+    "slam-front-right",
+    "slam-side-left",
+    "slam-side-right",
     # Gen 1 labels
     "camera-slam-left",
     "camera-slam-right",

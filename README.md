@@ -106,7 +106,7 @@ aria-hloc build-map \
     --vrs recording.vrs \
     --mps mps_recording_vrs \
     --output maps/office \
-    --cameras camera-rgb camera-slam-front-left camera-slam-front-right   # default: all RGB/SLAM streams
+    --cameras camera-rgb slam-front-left slam-front-right   # default: all RGB/SLAM streams (Gen 2 labels: slam-front-left, slam-side-left, ...)
 ```
 
 Useful options: `--min-translation/--min-rotation` (keyframe density),
@@ -160,7 +160,7 @@ aria-hloc serve --map maps/office --port 8080            # --device cuda|cpu, --
 | `POST /localize/json` | same with `image_base64` in a JSON body |
 
 * Raw Aria frames (`rectified=false`, default): `camera_label` selects the camera
-  (`camera-rgb`, `camera-slam-front-left`, ...). The service rectifies the frame with
+  (`camera-rgb`, `slam-front-left`, ... on Gen 2; `camera-slam-left` on Gen 1). The service rectifies the frame with
   the calibration stored in the map, or with the calibration of the *query* device if
   `calibration` carries it (`aria_hloc.aria.calibration.camera_calibration_to_dict`).
 * Pinhole images (`rectified=true`): `calibration` = `{"width","height","fx","fy","cx","cy"}`.
@@ -211,9 +211,9 @@ res = reloc.localize_aria_frame(frame.image, "camera-rgb", src_calib=reader.came
 * `T_world_device` refers to the Aria *device* frame used by MPS, so results can be
   compared with `closed_loop_trajectory.csv` directly and combined with other MPS
   outputs (eye gaze, hand tracking, semi-dense points).
-* Timestamps are device-time nanoseconds (`capture_timestamp_ns`). If the calibration
-  provides `time_offset_sec_device_camera` it is added before the pose lookup
-  (disable with `--no-time-offset`).
+* Timestamps are device-time nanoseconds (`capture_timestamp_ns`). The pose is looked up
+  at `capture_timestamp_ns - time_offset_sec_device_camera` as documented by
+  projectaria_tools (`CameraCalibration.h`); disable with `--no-time-offset`.
 
 ## Tests
 

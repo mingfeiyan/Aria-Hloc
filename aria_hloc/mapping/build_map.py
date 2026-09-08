@@ -86,6 +86,34 @@ class KeyframeExtractionResult:
     stats: Dict = field(default_factory=dict)
 
 
+def _match_resolution(calib, size, reader: AriaVrsReader, label: str):
+    """Rescale ``calib`` to the frame resolution with the device's canonical transform.
+
+    MPS online calibrations may be expressed at the full sensor resolution (e.g.
+    2880x2880 for the Gen 1 RGB camera) while the recording was made at a lower
+    one; ``rescale_camera_calibration`` reproduces the factory rescaling exactly.
+    """
+    w, h = [int(v) for v in calib.get_image_size()]
+    if (w, h) == tuple(size):
+        return calib
+    try:
+        from projectaria_tools.core import calibration as aria_calib
+
+        return aria_calib.rescale_camera_calibration(
+            calib, np.array(size, dtype=np.int32), reader.device_calibration.get_device_version(), label
+        )
+    except Exception:  # pragma: no cover - depends on projectaria_tools version
+        return None
+
+
+def _time_offset_ns(calib) -> int:
+    """Camera time offset in ns. projectaria_tools: corrected_capture_time = capture_timestamp - offset."""
+    try:
+        return int(round(float(calib.get_time_offset_sec_device_camera()) * 1e9))
+    except Exception:  # pragma: no cover - older projectaria_tools
+        return 0
+
+
 def _save_image(path: Path, image: np.ndarray, fmt: str, quality: int) -> None:
     import cv2
 
@@ -121,17 +149,12 @@ def extract_keyframes(
         focal = float(np.asarray(factory_calib.get_focal_lengths()).reshape(-1)[0]) * cfg.rectified_scale * cfg.focal_scale
         base = Rectifier(factory_calib, width=width, height=height, focal=focal, upright=cfg.upright)
         cameras[label] = base.camera
-        time_offset_ns = 0
-        if cfg.apply_time_offset:
-            try:
-                time_offset_ns = int(round(float(factory_calib.get_time_offset_sec_device_camera()) * 1e9))
-            except Exception:  # pragma: no cover
-                time_offset_ns = 0
+        time_offset_ns = _time_offset_ns(factory_calib) if cfg.apply_time_offset else 0
 
         timestamps = reader.timestamps_ns(label)
         poses = []
         for ts in timestamps:
-            p = trajectory.pose_at(int(ts) + time_offset_ns, max_gap_ns=max_gap_ns, min_quality=cfg.min_quality)
+            p = trajectory.pose_at(int(ts) - time_offset_ns, max_gap_ns=max_gap_ns, min_quality=cfg.min_quality)
             poses.append(None if p is None else p.T_world_device)
         num_posed = sum(p is not None for p in poses)
         selected = select_keyframes(poses, cfg.min_translation_m, cfg.min_rotation_deg, cfg.max_keyframes_per_camera)
@@ -149,23 +172,21 @@ def extract_keyframes(
                 num_failed += 1
                 logger.warning("%s[%d]: could not read frame (%s); skipping", label, idx, e)
                 continue
-            ts_pose = frame.timestamp_ns + time_offset_ns
-            pose = trajectory.pose_at(ts_pose, max_gap_ns=max_gap_ns, min_quality=cfg.min_quality)
-            if pose is None:
-                continue
             rectifier = base
             if online_calibration is not None and cfg.use_online_calibration:
                 online = online_calibration.camera_calibration(label, frame.timestamp_ns)
                 if online is not None:
-                    online_size = [int(v) for v in online.get_image_size()]
-                    if online_size == [src_w, src_h]:
+                    online = _match_resolution(online, (src_w, src_h), reader, label)
+                    if online is not None:
                         rectifier = Rectifier(online, width=width, height=height, focal=focal, upright=cfg.upright)
                     elif not online_warned:
-                        logger.warning(
-                            "%s: online calibration is %dx%d but frames are %dx%d; using factory calibration",
-                            label, online_size[0], online_size[1], src_w, src_h,
-                        )
+                        logger.warning("%s: online calibration resolution differs from the frames; using factory calibration", label)
                         online_warned = True
+            # Online calibration may refine the camera time offset; use the calibration we rectify with.
+            frame_offset_ns = _time_offset_ns(rectifier.src_calib) if cfg.apply_time_offset else 0
+            pose = trajectory.pose_at(frame.timestamp_ns - frame_offset_ns, max_gap_ns=max_gap_ns, min_quality=cfg.min_quality)
+            if pose is None:
+                continue
             try:
                 rect = rectifier(frame.image)
             except ValueError as e:
