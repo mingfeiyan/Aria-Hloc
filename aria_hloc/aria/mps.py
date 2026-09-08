@@ -356,7 +356,10 @@ class OnlineCalibrationProvider:
         if best is None or best[0] > max_gap_ns:
             return None
         calib = self._calibs[best[1]]
-        for cam in calib.camera_calibs:
-            if cam.get_label() == label:
-                return cam
+        try:
+            return calib.get_camera_calib(label)
+        except AttributeError:  # pragma: no cover - older projectaria_tools
+            for cam in calib.camera_calibs:
+                if cam.get_label() == label:
+                    return cam
         return None

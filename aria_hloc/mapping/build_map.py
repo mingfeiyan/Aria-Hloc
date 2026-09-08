@@ -140,8 +140,15 @@ def extract_keyframes(
         )
 
         t0 = time.time()
+        online_warned = False
+        num_failed = 0
         for n, idx in enumerate(selected):
-            frame = reader.get_frame(label, idx)
+            try:
+                frame = reader.get_frame(label, idx)
+            except Exception as e:
+                num_failed += 1
+                logger.warning("%s[%d]: could not read frame (%s); skipping", label, idx, e)
+                continue
             ts_pose = frame.timestamp_ns + time_offset_ns
             pose = trajectory.pose_at(ts_pose, max_gap_ns=max_gap_ns, min_quality=cfg.min_quality)
             if pose is None:
@@ -150,8 +157,24 @@ def extract_keyframes(
             if online_calibration is not None and cfg.use_online_calibration:
                 online = online_calibration.camera_calibration(label, frame.timestamp_ns)
                 if online is not None:
-                    rectifier = Rectifier(online, width=width, height=height, focal=focal, upright=cfg.upright)
-            rect = rectifier(frame.image)
+                    online_size = [int(v) for v in online.get_image_size()]
+                    if online_size == [src_w, src_h]:
+                        rectifier = Rectifier(online, width=width, height=height, focal=focal, upright=cfg.upright)
+                    elif not online_warned:
+                        logger.warning(
+                            "%s: online calibration is %dx%d but frames are %dx%d; using factory calibration",
+                            label, online_size[0], online_size[1], src_w, src_h,
+                        )
+                        online_warned = True
+            try:
+                rect = rectifier(frame.image)
+            except ValueError as e:
+                num_failed += 1
+                if num_failed <= 3:
+                    logger.warning("%s[%d]: %s", label, idx, e)
+                if num_failed > 20 and not keyframes:
+                    raise RuntimeError(f"{label}: rectification keeps failing; check the calibration/image sizes") from e
+                continue
             name = f"{label}/{frame.timestamp_ns}.{cfg.image_format}"
             _save_image(paths.images / name, rect, cfg.image_format, cfg.jpeg_quality)
             T_world_camera = pose.T_world_device @ rectifier.camera.T_device_camera
@@ -162,6 +185,7 @@ def extract_keyframes(
             "num_frames": int(len(timestamps)),
             "num_posed": int(num_posed),
             "num_keyframes": int(len(selected)),
+            "num_failed": int(num_failed),
             "rectified_size": [cameras[label].pinhole.width, cameras[label].pinhole.height],
         }
     stats["num_keyframes"] = len(keyframes)

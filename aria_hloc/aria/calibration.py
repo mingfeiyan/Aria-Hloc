@@ -236,6 +236,12 @@ class Rectifier:
         image = np.ascontiguousarray(image)
         if image.dtype != np.uint8:
             image = np.clip(image, 0, 255).astype(np.uint8)
+        src_w, src_h = [int(v) for v in self.src_calib.get_image_size()]
+        if image.shape[1] != src_w or image.shape[0] != src_h:
+            raise ValueError(
+                f"{self.label}: image is {image.shape[1]}x{image.shape[0]} but the calibration expects "
+                f"{src_w}x{src_h}; rescale the calibration (CameraCalibration.rescale) or pass matching frames"
+            )
         rect = aria_calib.distort_by_calibration(image, self._linear, self.src_calib)
         rect = np.asarray(rect)
         if self.upright:
